@@ -1,0 +1,112 @@
+name: Release
+
+# Manual trigger only. You pick the semver level; the workflow bumps every
+# file that carries the version, tags the commit, then builds installers for
+# the three desktop targets and attaches them to a draft GitHub Release.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Semver level to bump"
+        type: choice
+        options: [patch, minor, major]
+        required: true
+        default: patch
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: Bump version, commit, tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.2.10"
+
+      - name: Bump version across all four files
+        run: bun scripts/bump-version.ts ${{ inputs.bump }}
+
+      - name: Capture new version
+        id: ver
+        run: echo "version=$(jq -r .version package.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and tag
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          git config user.name "The Loremaster"
+          git config user.email "loremaster[bot]@users.noreply.github.com"
+          git commit -am "Release v${VERSION}"
+          git tag "v${VERSION}"
+          git push origin "HEAD:${{ github.ref_name }}"
+          git push origin "v${VERSION}"
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: bump
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: v${{ needs.bump.outputs.version }}
+          persist-credentials: false
+
+      - name: Install Tauri system dependencies (Linux only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.2.10"
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master @ 2025; branch-based action, channel set via input
+        with:
+          toolchain: stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2.9.1
+        with:
+          workspaces: src-tauri
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater signing. tauri-action uses these to sign each artifact and emit
+          # the .sig + latest.json the updater reads. Without them the build still
+          # produces installers, but every client would reject the update as
+          # unverifiable against the pubkey in tauri.conf.json. The private key lives
+          # only as a repo secret; password is empty (key generated with --ci).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: v${{ needs.bump.outputs.version }}
+          releaseName: DM Companion v${{ needs.bump.outputs.version }}
+          releaseDraft: true
+          prerelease: false
