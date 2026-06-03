@@ -1,0 +1,6 @@
+[package]
+name = "magelight-veil"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]

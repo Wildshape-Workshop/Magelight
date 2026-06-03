@@ -1,0 +1,52 @@
+{
+  "lsp": {
+    "svelte-language-server": {
+      "settings": {
+        "svelte": {
+          "enable-ts-plugin": true,
+        },
+      },
+    },
+  },
+  "languages": {
+    "TypeScript": {
+      "language_servers": ["...", "!oxfmt"],
+      "formatter": {
+        "external": {
+          "command": "./node_modules/.bin/oxfmt",
+          "arguments": ["--stdin-filepath", "{buffer_path}"],
+        },
+      },
+    },
+    "JavaScript": {
+      "language_servers": ["...", "!oxfmt"],
+      "formatter": {
+        "external": {
+          "command": "./node_modules/.bin/oxfmt",
+          "arguments": ["--stdin-filepath", "{buffer_path}"],
+        },
+      },
+    },
+    "HTML": {
+      "language_servers": ["...", "!oxfmt"],
+      "formatter": {
+        "external": {
+          "command": "./node_modules/.bin/oxfmt",
+          "arguments": ["--stdin-filepath", "{buffer_path}"],
+        },
+      },
+    },
+    "CSS": {
+      "language_servers": ["...", "!oxfmt"],
+      "formatter": {
+        "external": {
+          "command": "./node_modules/.bin/oxfmt",
+          "arguments": ["--stdin-filepath", "{buffer_path}"],
+        },
+      },
+    },
+    "Svelte": {
+      "language_servers": ["...", "!oxfmt"],
+    },
+  },
+}
