@@ -23,9 +23,25 @@ Stack: Tauri v2 (Rust backend) - Svelte 5 (runes) - TypeScript - Bun - Vite.
   Load-bearing decisions: block counts over pixels; and decode reads each u16 by direct indexing
   behind one up-front length guard, NOT via `?` + `impl From<TryFromSliceError>` (plan overridden in
   IMPLEMENT: a single length check makes every later index provably in-bounds, so there is no
-  `TryFromSliceError` left to convert; the `From` impl was deliberately dropped). NEXT: Phase 0
-  DEBRIEF (teach the format back, diff against the old repo) then commit. Update this line as we
-  progress.
+  `TryFromSliceError` left to convert; the `From` impl was deliberately dropped).
+  Phase 0 DEBRIEF DONE (committed as `Implement veil mask logic for fog of war`). Diffed against the
+  old repo's `src-tauri/src/fog.rs` (Wildshape-Workshop/dm-companion). Key findings: (1) the old
+  design has NO decode and NO reveal in Rust at all: Rust was an opaque store (`save_mask` writes
+  frontend bytes verbatim), the frontend (`fogMask.ts`) owned parsing/reveal/rewrite. Our rebuild
+  MOVED format authority into Rust, which is the whole reason `decode`'s validation guards exist and
+  is THE Tauri trust-boundary decision to carry into Phase 1. (2) Old header is 16 bytes LE
+  (`FOGM | version u16 | reserved u16 | width u32 | height u32`); ours is 9 bytes BE, u8 version, u16
+  dims, no reserved slot (version-leading is our only forward-compat lever, chosen deliberately).
+  (3) Old names the unit `texel` because a coarse mask is bilinear-upscaled by the GPU and that blur
+  IS the feathered fog edge (no shader): relevant when veil eventually meets a renderer.
+  NEXT: Phase 1 (the IPC trust boundary) begins: open `src-tauri/` for the first time. Vehicle is a
+  standalone IPC skeleton, NOT veil (veil is path-dep'd only at Phase 5): a single `#[tauri::command]`,
+  a second (player) window, then a one-way DM->player event pushing a `{ mode, payload }` blob the
+  player renders as text. Rust: command macro, serde across the line, `AppHandle`, `emit_to`/
+  `EventTarget`, managed `State`, the one-way trust boundary (player never replies). Svelte: first
+  runes (`$state`, `$props`) and the first legit `$effect` (Tauri event subscription + cleanup).
+  Runs when a DM-window button changes text in the player window, one-way. Start in PLAN.
+  Update this line as we progress.
 - The Learning output style is set in `.claude/settings.json` (`"outputStyle": "Learning"`).
 - **Structure:** a Cargo workspace. The pure-Rust fog crate is `crates/veil` (zero Tauri deps,
   tested in isolation); the Tauri backend is `src-tauri/` and only path-depends on the fog crate
