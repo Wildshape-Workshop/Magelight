@@ -85,7 +85,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master @ 2025; branch-based action, channel set via input
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master @ 2025; branch-based action, channel set via input
         with:
           toolchain: stable
 
