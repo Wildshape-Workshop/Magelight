@@ -9,8 +9,23 @@ Stack: Tauri v2 (Rust backend) - Svelte 5 (runes) - TypeScript - Bun - Vite.
 
 - The full curriculum is in `docs/LEARNING_ROADMAP.md`. Read it before doing anything.
 - **Resume point:** project scaffolded from a stripped `tauri new` skeleton, with the pure-Rust
-  fog crate at `crates/veil`; now Phase 0, PLAN skill, the `reveal()` ownership decision
-  (`self` vs `&self` vs `&mut self`). Update this line as we progress.
+  fog crate at `crates/veil`; now Phase 0. PLAN complete: full `FogMask` API + ownership derived
+  (`new -> Self`, `reveal(&mut self, Rect)` rounds outward, `encode(&self) -> Vec<u8>`,
+  `decode(&[u8]) -> Result<FogMask, DecodeError>`; `DecodeError { BadMagic, UnsupportedVersion(u8),
+  SizeError { expected, found } }`; convention 255=hidden/0=revealed, the byte is the render alpha).
+  IMPLEMENT DONE: `new` (div_ceil, fill 255), `reveal` (floor-start/ceil-end outward rounding, clamp
+  only the end, row-major index), `encode` (header via to_be_bytes + extend payload), and `decode`
+  (up-front magic + version + length checks) all written and green; 8 tests pass, clippy clean.
+  Wire format (locked): 9-byte header `b"VEIL"(4) | version=1 u8(1) | width_blocks u16 BE(2) |
+  height_blocks u16 BE(2)` then row-major payload of `w*h` bytes; header size named `HEADER_LENGTH`;
+  `expected = HEADER_LENGTH + w*h` fills SizeError; integrity = magic + length only (no checksum);
+  stored dims are block counts not pixels (self-contained, decode never div_ceils).
+  Load-bearing decisions: block counts over pixels; and decode reads each u16 by direct indexing
+  behind one up-front length guard, NOT via `?` + `impl From<TryFromSliceError>` (plan overridden in
+  IMPLEMENT: a single length check makes every later index provably in-bounds, so there is no
+  `TryFromSliceError` left to convert; the `From` impl was deliberately dropped). NEXT: Phase 0
+  DEBRIEF (teach the format back, diff against the old repo) then commit. Update this line as we
+  progress.
 - The Learning output style is set in `.claude/settings.json` (`"outputStyle": "Learning"`).
 - **Structure:** a Cargo workspace. The pure-Rust fog crate is `crates/veil` (zero Tauri deps,
   tested in isolation); the Tauri backend is `src-tauri/` and only path-depends on the fog crate
